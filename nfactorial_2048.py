@@ -11,19 +11,25 @@ LOGO = " _____  _____    ___  _____ \n" \
 LOGO_COLOR = 1
 
 TILE_COLORS = {
-    2: (curses.COLOR_BLACK, curses.COLOR_WHITE),
-    4: (curses.COLOR_BLACK, curses.COLOR_YELLOW),
-    8: (curses.COLOR_BLACK, curses.COLOR_BLUE),
-    16: (curses.COLOR_BLACK, curses.COLOR_GREEN),
-    32: (curses.COLOR_BLACK, curses.COLOR_MAGENTA),
-    64: (curses.COLOR_BLACK, curses.COLOR_CYAN),
-    128: (curses.COLOR_RED, curses.COLOR_CYAN),
-    256: (curses.COLOR_RED, curses.COLOR_GREEN),
-    512: (curses.COLOR_RED, curses.COLOR_YELLOW),
-    1024: (curses.COLOR_RED, curses.COLOR_BLUE),
-    2048: (curses.COLOR_RED, curses.COLOR_MAGENTA),
-    4096: (curses.COLOR_RED, curses.COLOR_CYAN),
-    8192: (curses.COLOR_RED, curses.COLOR_WHITE)
+    2: (2, curses.COLOR_WHITE, curses.COLOR_BLUE),
+    4: (3, curses.COLOR_WHITE, curses.COLOR_GREEN),
+    8: (4, curses.COLOR_WHITE, curses.COLOR_MAGENTA),
+    16: (5, curses.COLOR_WHITE, curses.COLOR_CYAN),
+    32: (6, curses.COLOR_WHITE, curses.COLOR_RED),
+    64: (7, curses.COLOR_WHITE, curses.COLOR_YELLOW),
+    128: (8, curses.COLOR_BLACK, curses.COLOR_WHITE),
+    256: (9, curses.COLOR_BLACK, curses.COLOR_BLUE),
+    512: (10, curses.COLOR_BLACK, curses.COLOR_GREEN),
+    1024: (11, curses.COLOR_BLACK, curses.COLOR_MAGENTA),
+    2048: (12, curses.COLOR_BLACK, curses.COLOR_CYAN),
+    4096: (13, curses.COLOR_BLACK, curses.COLOR_RED),
+    8192: (14, curses.COLOR_BLACK, curses.COLOR_YELLOW),
+    16384: (15, curses.COLOR_WHITE, curses.COLOR_BLACK),
+    32768: (16, curses.COLOR_WHITE, curses.COLOR_BLUE),
+    65536: (17, curses.COLOR_WHITE, curses.COLOR_GREEN),
+    131072: (18, curses.COLOR_WHITE, curses.COLOR_MAGENTA),
+    262144: (19, curses.COLOR_WHITE, curses.COLOR_CYAN),
+    524288: (20, curses.COLOR_WHITE, curses.COLOR_RED)
 }
 
 LEVELS = (("Master - 3x3", 3, 3),
@@ -33,7 +39,7 @@ LEVELS = (("Master - 3x3", 3, 3),
 
 
 def get_tile_color_pair(tile):
-    return curses.color_pair(8192 if tile >= 8192 else tile)
+    return curses.color_pair(TILE_COLORS[524288 if tile >= 524288 else tile][0])
 
 
 def add_cstr(stdscr, y, str):
@@ -62,9 +68,9 @@ class NFactorial2048:
         self.width = width
 
         self.board_window = curses.newwin(
-            height * 2 + 1, width * 7 + 1,
+            height * 2 + 1, width * 9 + 1,
             (curses.LINES - height * 2 - 1) // 2,
-            (curses.COLS - width * 7 - 1) // 2)
+            (curses.COLS - width * 9 - 1) // 2)
         self.board = NFactorial2048.empty_board(height, width)
         for _ in range(2):
             # choose 2 with 75% probability and 4 with 25% probability
@@ -76,18 +82,18 @@ class NFactorial2048:
         self.board_window.clear()
         for i in range(self.width):
             for j in range(self.height):
-                self.board_window.addstr(i * 2, j * 7, "+------")
-                self.board_window.addch(i * 2 + 1, j * 7, "|")
+                self.board_window.addstr(i * 2, j * 9, "+--------")
+                self.board_window.addch(i * 2 + 1, j * 9, "|")
                 if self.board[i][j] != 0:
                     self.board_window.addstr(
-                        i * 2 + 1, j * 7 + 1,
-                        str(self.board[i][j]).center(6),
+                        i * 2 + 1, j * 9 + 1,
+                        str(self.board[i][j]).center(8),
                         get_tile_color_pair(self.board[i][j]))
-            self.board_window.addch(i * 2, self.height * 7, "+")
-            self.board_window.addch(i * 2 + 1, self.height * 7, "|")
+            self.board_window.addch(i * 2, self.height * 9, "+")
+            self.board_window.addch(i * 2 + 1, self.height * 9, "|")
         for j in range(self.height):
-            self.board_window.addstr(self.width * 2, j * 7, "+------")
-        self.board_window.insch(self.width * 2, self.height * 7, "+")
+            self.board_window.addstr(self.width * 2, j * 9, "+--------")
+        self.board_window.insch(self.width * 2, self.height * 9, "+")
         self.board_window.refresh()
 
     def compress(self):
@@ -176,11 +182,10 @@ def game(stdscr, level):
     nfactorial2048 = NFactorial2048(*LEVELS[level][1:])
     nfactorial2048.draw()
 
-    add_cstr(stdscr, curses.LINES - 2,
-             "PRESS Q TO QUIT, ARROW KEYS OR WASD TO MOVE THE TILES")
-
     continue_game_after_win = False
     while True:
+        add_cstr(stdscr, curses.LINES - 2,
+                 "PRESS Q TO QUIT, ARROW KEYS OR WASD TO MOVE THE TILES")
         key = stdscr.getkey()
         if key == "KEY_UP" or key.lower() == "w":
             nfactorial2048.move("UP")
@@ -231,8 +236,8 @@ def main(stdscr):
 
     curses.init_pair(LOGO_COLOR, curses.COLOR_YELLOW, curses.COLOR_BLACK)
 
-    for tile, color in TILE_COLORS.items():
-        curses.init_pair(tile, *color)
+    for pair in TILE_COLORS.values():
+        curses.init_pair(*pair)
 
     level = 1
     while True:

@@ -333,8 +333,6 @@ def main(stdscr):
     if curses.LINES < 24 or curses.COLS < 80:
         raise curses.error("Please resize the terminal to at least 80x24.")
 
-    curses.raw()
-
     curses.curs_set(0)
 
     for pair, (fg, bg) in COLOR_PAIRS.items():
@@ -380,4 +378,6 @@ if __name__ == "__main__":
         curses.wrapper(main)
     except curses.error as e:
         print(e, file=sys.stderr)
+        sys.exit(1)
+    except KeyboardInterrupt:
         sys.exit(1)

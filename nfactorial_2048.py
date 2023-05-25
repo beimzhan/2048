@@ -1,4 +1,5 @@
 import curses
+import json
 import random
 import sys
 
@@ -82,7 +83,8 @@ class NFactorial2048:
         x, y = random.choice(empty_tiles)
         self.board[x][y] = value
 
-    def __init__(self, height, width):
+    def __init__(self, level_name, height, width):
+        self.level_name = level_name
         self.height = height
         self.width = width
 
@@ -95,6 +97,8 @@ class NFactorial2048:
         for _ in range(2):
             # choose 2 with 75% probability and 4 with 25% probability
             self.add_random_tile(random.choice([2, 2, 2, 4]))
+
+        self.score = 0
 
         self.state = "PLAYING"
 
@@ -135,6 +139,8 @@ class NFactorial2048:
                 if value == self.board[i][j + 1] and value != 0:
                     self.board[i][j] = self.board[i][j] * 2
                     self.board[i][j + 1] = 0
+
+                    self.score += self.board[i][j]
         return self
 
     def reverse(self):
@@ -194,16 +200,44 @@ class NFactorial2048:
             if won:
                 self.state = "WON AND CANNOT CONTINUE"
 
+    def get_highscores(self):
+        try:
+            with open("highscores.json", "r") as f:
+                return json.load(f)
+        except BaseException:
+            return {}
+
+    def get_highscore(self):
+        highscore_from_file = self.get_highscores().get(self.level_name, 0)
+        if self.score > highscore_from_file:
+            return self.score
+        else:
+            return highscore_from_file
+
+    def save_score(self):
+        highscores = self.get_highscores()
+        highscores[self.level_name] = self.get_highscore()
+        try:
+            with open("highscores.json", "w") as f:
+                json.dump(highscores, f)
+        except:
+            pass
+
+    def show_score(self, stdscr):
+        stdscr.addstr(4, 0, f"SCORE: {self.score}".center(curses.COLS // 2) +
+                      f"HIGH SCORE: {self.get_highscore()}".center(curses.COLS // 2))
+        stdscr.refresh()
 
 def adcstr(stdscr, y, str):
     stdscr.addstr(y, 0, str.center(curses.COLS))
 
 
-def game(stdscr, height, width):
-    stdscr.clear()
-    stdscr.refresh()
+def game(stdscr, level):
+    nfactorial2048 = NFactorial2048(LEVEL_NAMES[level], *LEVELS[level])
 
-    nfactorial2048 = NFactorial2048(height, width)
+    stdscr.clear()
+
+    nfactorial2048.show_score(stdscr)
     nfactorial2048.draw()
 
     continue_game_after_win = False
@@ -227,8 +261,12 @@ def game(stdscr, height, width):
         else:
             continue
 
+        nfactorial2048.show_score(stdscr)
+
         if nfactorial2048.state == "LOST" or \
                 nfactorial2048.state == "WON AND CANNOT CONTINUE":
+            nfactorial2048.save_score()
+
             adcstr(stdscr, 2, "GAME OVER!")
             adcstr(stdscr, curses.LINES - 2,
                    "PRESS Q TO QUIT OR ANY OTHER KEY TO RESTART")
@@ -295,7 +333,7 @@ def main(stdscr):
         elif key == "KEY_DOWN":
             level = (level + 1) % len(LEVELS)
         elif key == "\n":
-            continue_game = game(stdscr, *LEVELS[level])
+            continue_game = game(stdscr, level)
             if not continue_game:
                 break
         elif key.lower() == 'q':

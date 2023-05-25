@@ -1,3 +1,4 @@
+import copy
 import curses
 import json
 import random
@@ -66,7 +67,7 @@ TILE_COLORS = {
 }
 
 
-class NFactorial2048:
+class Board2048:
     @classmethod
     def empty_board(cls, height, width):
         return [[0] * width for _ in range(height)]
@@ -83,45 +84,25 @@ class NFactorial2048:
         x, y = random.choice(empty_tiles)
         self.board[x][y] = value
 
-    def __init__(self, level_name, height, width):
-        self.level_name = level_name
+    def __init__(self, height, width):
         self.height = height
         self.width = width
 
-        self.board_window = curses.newwin(
-            height * 2 + 1, width * 9 + 1,
-            (curses.LINES - height * 2 - 1) // 2,
-            (curses.COLS - width * 9 - 1) // 2)
+        self.score = 0
 
-        self.board = NFactorial2048.empty_board(height, width)
+        self.board = Board2048.empty_board(height, width)
         for _ in range(2):
             # choose 2 with 75% probability and 4 with 25% probability
             self.add_random_tile(random.choice([2, 2, 2, 4]))
 
-        self.score = 0
-
-        self.state = "PLAYING"
-
-    def draw(self):
-        self.board_window.clear()
-        for i in range(self.width):
-            for j in range(self.height):
-                tile = self.board[i][j]
-                self.board_window.addstr(i * 2, j * 9, "+--------")
-                self.board_window.addch(i * 2 + 1, j * 9, "|")
-                if tile != 0:
-                    self.board_window.addstr(
-                        i * 2 + 1, j * 9 + 1,
-                        str(tile).center(8),
-                        curses.color_pair(TILE_COLORS.get(tile, 20)))
-            self.board_window.addch(i * 2, self.height * 9, "+")
-            self.board_window.addch(i * 2 + 1, self.height * 9, "|")
-        for j in range(self.height):
-            self.board_window.addstr(self.width * 2, j * 9, "+--------")
-        self.board_window.insch(self.width * 2, self.height * 9, "+")
-        self.board_window.refresh()
+    @classmethod
+    def from_board(cls, height, width, board):
+        res = cls(height, width)
+        res.board = copy.deepcopy(board)
+        return res
 
     def compress(self):
+        self.compressed = False
         for i in range(self.height):
             k = 0
             for j in range(self.width):
@@ -130,17 +111,20 @@ class NFactorial2048:
                     if j != k:
                         self.board[i][j] = 0
                     k += 1
+            if k != self.width - 1:
+                self.compressed = True
         return self
 
     def merge(self):
+        self.merged = False
         for i in range(self.height):
             for j in range(self.width - 1):
                 value = self.board[i][j]
                 if value == self.board[i][j + 1] and value != 0:
                     self.board[i][j] = self.board[i][j] * 2
                     self.board[i][j + 1] = 0
-
                     self.score += self.board[i][j]
+                    self.merged = True
         return self
 
     def reverse(self):
@@ -156,7 +140,13 @@ class NFactorial2048:
         return self
 
     def move_left(self):
-        return self.compress().merge().compress()
+        tmp = copy.deepcopy(self.board)
+        self.compress().merge()
+        self.is_valid_move = self.compressed or self.merged
+        if not self.is_valid_move:
+            self.board = tmp
+            return self
+        return self.compress()
 
     def move_right(self):
         return self.reverse().move_left().reverse()
@@ -177,8 +167,10 @@ class NFactorial2048:
         elif direction == "RIGHT":
             self.move_right()
 
+        if not self.is_valid_move:
+            return
+
         self.add_random_tile(random.choice([2] * 6 + [4]))
-        self.draw()
 
         won = False
         game_continues = False
@@ -199,6 +191,42 @@ class NFactorial2048:
             self.state = "LOST"
             if won:
                 self.state = "WON AND CANNOT CONTINUE"
+
+
+class NFactorial2048(Board2048):
+    def __init__(self, level_name, height, width):
+        super().__init__(height, width)
+
+        self.level_name = level_name
+        self.state = "PLAYING"
+
+        self.board_window = curses.newwin(
+            height * 2 + 1, width * 9 + 1,
+            (curses.LINES - height * 2 - 1) // 2,
+            (curses.COLS - width * 9 - 1) // 2)
+
+    def draw(self):
+        self.board_window.clear()
+        for i in range(self.width):
+            for j in range(self.height):
+                tile = self.board[i][j]
+                self.board_window.addstr(i * 2, j * 9, "+--------")
+                self.board_window.addch(i * 2 + 1, j * 9, "|")
+                if tile != 0:
+                    self.board_window.addstr(
+                        i * 2 + 1, j * 9 + 1,
+                        str(tile).center(8),
+                        curses.color_pair(TILE_COLORS.get(tile, 20)))
+            self.board_window.addch(i * 2, self.height * 9, "+")
+            self.board_window.addch(i * 2 + 1, self.height * 9, "|")
+        for j in range(self.height):
+            self.board_window.addstr(self.width * 2, j * 9, "+--------")
+        self.board_window.insch(self.width * 2, self.height * 9, "+")
+        self.board_window.refresh()
+
+    def move(self, direction):
+        super().move(direction)
+        self.draw()
 
     def get_highscores(self):
         try:
@@ -233,9 +261,31 @@ def adcstr(stdscr, y, str):
     stdscr.addstr(y, 0, str.center(curses.COLS))
 
 
-def bot_get_move(board):
-    return random.choice(["UP", "DOWN", "LEFT", "RIGHT"])
+def get_best_move(height, width, board):
+    all_moves = ["UP", "DOWN", "LEFT", "RIGHT"]
+    scores = [0 for _ in range(4)]
 
+    for i, direction in enumerate(all_moves):
+        board_copy = Board2048.from_board(height, width, board)
+        board_copy.move(direction)
+
+        if not board_copy.is_valid_move:
+            continue
+
+        scores[i] += board_copy.score
+        for _ in range(20): # searches per move
+            j = 1
+            search_board = copy.deepcopy(board_copy)
+
+            while search_board.is_valid_move and j < 10: # search length
+                random_move = random.choice(all_moves)
+                search_board.move(random_move)
+
+                if search_board.is_valid_move:
+                    scores[i] += search_board.score
+                    j += 1
+
+    return all_moves[max(range(4), key=lambda i: scores[i])]
 
 def game(stdscr, level):
     nfactorial2048 = NFactorial2048(LEVEL_NAMES[level], *LEVELS[level])
@@ -254,14 +304,16 @@ def game(stdscr, level):
                "PRESS Q TO QUIT, ARROW KEYS OR WASD TO MOVE THE TILES")
 
         if bot_play:
-            adcstr(stdscr, curses.LINES -
-                   4, "BOT PLAY IS ON. PRESS B TO TURN IT OFF.")
+            adcstr(stdscr, curses.LINES - 4,
+                   "BOT PLAY IS ON. PRESS B TO TURN IT OFF.")
         else:
             adcstr(stdscr, curses.LINES - 4, "PRESS B TO TOGGLE BOT PLAY")
 
         if bot_play:
-            curses.flushinp()
-            curses.napms(500)
+            stdscr.nodelay(True)
+            curses.napms(250)
+        else:
+            stdscr.nodelay(False)
 
         try:
             key = stdscr.getkey()
@@ -271,15 +323,12 @@ def game(stdscr, level):
         if key.lower() == "q":
             return False
         if key.lower() == "b":
-            if bot_play:
-                bot_play = False
-                stdscr.nodelay(False)
-            else:
-                bot_play = True
-                stdscr.nodelay(True)
+            bot_play = not bot_play
             continue
         elif bot_play and key == "":
-            nfactorial2048.move(bot_get_move(nfactorial2048.board))
+            nfactorial2048.move(get_best_move(
+                nfactorial2048.height, nfactorial2048.width,
+                nfactorial2048.board))
         elif not bot_play:
             if key == "KEY_UP" or key.lower() == "w":
                 nfactorial2048.move("UP")
@@ -380,4 +429,4 @@ if __name__ == "__main__":
         print(e, file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:
-        sys.exit(1)
+        sys.exit(2)

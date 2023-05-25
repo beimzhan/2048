@@ -220,7 +220,7 @@ class NFactorial2048:
         try:
             with open("highscores.json", "w") as f:
                 json.dump(highscores, f)
-        except:
+        except BaseException:
             pass
 
     def show_score(self, stdscr):
@@ -228,8 +228,13 @@ class NFactorial2048:
                       f"HIGH SCORE: {self.get_highscore()}".center(curses.COLS // 2))
         stdscr.refresh()
 
+
 def adcstr(stdscr, y, str):
     stdscr.addstr(y, 0, str.center(curses.COLS))
+
+
+def bot_get_move(board):
+    return random.choice(["UP", "DOWN", "LEFT", "RIGHT"])
 
 
 def game(stdscr, level):
@@ -240,6 +245,7 @@ def game(stdscr, level):
     nfactorial2048.show_score(stdscr)
     nfactorial2048.draw()
 
+    bot_play = False
     continue_game_after_win = False
     while True:
         stdscr.move(2, 0)
@@ -247,19 +253,44 @@ def game(stdscr, level):
         adcstr(stdscr, curses.LINES - 2,
                "PRESS Q TO QUIT, ARROW KEYS OR WASD TO MOVE THE TILES")
 
-        key = stdscr.getkey()
-        if key == "KEY_UP" or key.lower() == "w":
-            nfactorial2048.move("UP")
-        elif key == "KEY_DOWN" or key.lower() == "s":
-            nfactorial2048.move("DOWN")
-        elif key == "KEY_LEFT" or key.lower() == "a":
-            nfactorial2048.move("LEFT")
-        elif key == "KEY_RIGHT" or key.lower() == "d":
-            nfactorial2048.move("RIGHT")
-        elif key.lower() == "q":
-            return False
+        if bot_play:
+            adcstr(stdscr, curses.LINES -
+                   4, "BOT PLAY IS ON. PRESS B TO TURN IT OFF.")
         else:
+            adcstr(stdscr, curses.LINES - 4, "PRESS B TO TOGGLE BOT PLAY")
+
+        if bot_play:
+            curses.flushinp()
+            curses.napms(500)
+
+        try:
+            key = stdscr.getkey()
+        except BaseException:  # if no key is pressed
+            key = ""
+
+        if key.lower() == "q":
+            return False
+        if key.lower() == "b":
+            if bot_play:
+                bot_play = False
+                stdscr.nodelay(False)
+            else:
+                bot_play = True
+                stdscr.nodelay(True)
             continue
+        elif bot_play and key == "":
+            nfactorial2048.move(bot_get_move(nfactorial2048.board))
+        elif not bot_play:
+            if key == "KEY_UP" or key.lower() == "w":
+                nfactorial2048.move("UP")
+            elif key == "KEY_DOWN" or key.lower() == "s":
+                nfactorial2048.move("DOWN")
+            elif key == "KEY_LEFT" or key.lower() == "a":
+                nfactorial2048.move("LEFT")
+            elif key == "KEY_RIGHT" or key.lower() == "d":
+                nfactorial2048.move("RIGHT")
+            else:
+                continue
 
         nfactorial2048.show_score(stdscr)
 
@@ -272,6 +303,7 @@ def game(stdscr, level):
                    "PRESS Q TO QUIT OR ANY OTHER KEY TO RESTART")
             stdscr.refresh()
             curses.napms(1500)
+            stdscr.nodelay(False)
             key = stdscr.getkey()
             return key.lower() != "q"
         elif nfactorial2048.state == "WON AND CAN CONTINUE":
@@ -282,6 +314,7 @@ def game(stdscr, level):
                    "PRESS Q TO QUIT OR ANY OTHER KEY TO CONTINUE")
             stdscr.refresh()
             curses.napms(1500)
+            stdscr.nodelay(False)
             key = stdscr.getkey()
             if key.lower() == "q":
                 return False
@@ -299,6 +332,8 @@ def logo_show(stdscr):
 def main(stdscr):
     if curses.LINES < 24 or curses.COLS < 80:
         raise curses.error("Please resize the terminal to at least 80x24.")
+
+    curses.raw()
 
     curses.curs_set(0)
 
@@ -346,5 +381,3 @@ if __name__ == "__main__":
     except curses.error as e:
         print(e, file=sys.stderr)
         sys.exit(1)
-    except KeyboardInterrupt:
-        pass

@@ -31,11 +31,14 @@ LEVELS = (("Master - 3x3", 3, 3),
           ("Easy - 5x5", 5, 5),
           ("Relax - 6x6", 6, 6))
 
+
 def get_tile_color_pair(tile):
     return curses.color_pair(8192 if tile >= 8192 else tile)
 
+
 def add_cstr(stdscr, y, str):
     stdscr.addstr(y, 0, str.center(curses.COLS))
+
 
 class NFactorial2048:
     @classmethod
@@ -44,9 +47,9 @@ class NFactorial2048:
 
     def fill_random_empty_tile(self, value):
         empty_tiles = [(row, col)
-               for row, row_tiles in enumerate(self.board)
-               for col, tile in enumerate(row_tiles)
-               if tile == 0]
+                       for row, row_tiles in enumerate(self.board)
+                       for col, tile in enumerate(row_tiles)
+                       if tile == 0]
 
         if not empty_tiles:
             return
@@ -59,9 +62,9 @@ class NFactorial2048:
         self.width = width
 
         self.board_window = curses.newwin(
-            height*2+1, width*7+1,
-            (curses.LINES - height*2 - 1) // 2,
-            (curses.COLS - width*7 - 1) // 2)
+            height * 2 + 1, width * 7 + 1,
+            (curses.LINES - height * 2 - 1) // 2,
+            (curses.COLS - width * 7 - 1) // 2)
         self.board = NFactorial2048.empty_board(height, width)
         for _ in range(2):
             # choose 2 with 75% probability and 4 with 25% probability
@@ -73,18 +76,18 @@ class NFactorial2048:
         self.board_window.clear()
         for i in range(self.width):
             for j in range(self.height):
-                self.board_window.addstr(i*2, j*7, "+------")
-                self.board_window.addch(i*2+1, j*7, "|")
+                self.board_window.addstr(i * 2, j * 7, "+------")
+                self.board_window.addch(i * 2 + 1, j * 7, "|")
                 if self.board[i][j] != 0:
                     self.board_window.addstr(
-                        i*2+1, j*7+1,
+                        i * 2 + 1, j * 7 + 1,
                         str(self.board[i][j]).center(6),
                         get_tile_color_pair(self.board[i][j]))
-            self.board_window.addch(i*2, self.height*7, "+")
-            self.board_window.addch(i*2+1, self.height*7, "|")
+            self.board_window.addch(i * 2, self.height * 7, "+")
+            self.board_window.addch(i * 2 + 1, self.height * 7, "|")
         for j in range(self.height):
-            self.board_window.addstr(self.width*2, j*7, "+------")
-        self.board_window.insch(self.width*2, self.height*7, "+")
+            self.board_window.addstr(self.width * 2, j * 7, "+------")
+        self.board_window.insch(self.width * 2, self.height * 7, "+")
         self.board_window.refresh()
 
     def compress(self):
@@ -102,7 +105,7 @@ class NFactorial2048:
         for i in range(self.height):
             for j in range(self.width - 1):
                 value = self.board[i][j]
-                if value == self.board[i][j+1] and value != 0:
+                if value == self.board[i][j + 1] and value != 0:
                     self.board[i][j] = self.board[i][j] * 2
                     self.board[i][j + 1] = 0
         return self
@@ -152,8 +155,8 @@ class NFactorial2048:
                 if self.board[i][j] >= 2048:
                     won = True
                 if self.board[i][j] == 0 or \
-                        i > 0 and self.board[i-1][j] == self.board[i][j] or \
-                        j > 0 and self.board[i][j-1] == self.board[i][j]:
+                        i > 0 and self.board[i - 1][j] == self.board[i][j] or \
+                        j > 0 and self.board[i][j - 1] == self.board[i][j]:
                     game_continues = True
 
         if game_continues:
@@ -165,6 +168,7 @@ class NFactorial2048:
             if won:
                 self.state = "WON AND CANNOT CONTINUE"
 
+
 def game(stdscr, level):
     stdscr.clear()
     stdscr.refresh()
@@ -172,7 +176,7 @@ def game(stdscr, level):
     nfactorial2048 = NFactorial2048(*LEVELS[level][1:])
     nfactorial2048.draw()
 
-    add_cstr(stdscr, curses.LINES-2,
+    add_cstr(stdscr, curses.LINES - 2,
              "PRESS Q TO QUIT, ARROW KEYS OR WASD TO MOVE THE TILES")
 
     continue_game_after_win = False
@@ -194,7 +198,7 @@ def game(stdscr, level):
         if nfactorial2048.state == "LOST" or \
                 nfactorial2048.state == "WON AND CANNOT CONTINUE":
             add_cstr(stdscr, 2, "GAME OVER!")
-            add_cstr(stdscr, curses.LINES-2,
+            add_cstr(stdscr, curses.LINES - 2,
                      "PRESS Q TO QUIT OR ANY OTHER KEY TO RESTART")
             stdscr.refresh()
             curses.napms(1500)
@@ -204,7 +208,7 @@ def game(stdscr, level):
             if continue_game_after_win:
                 continue
             add_cstr(stdscr, 2, "YOU WON!")
-            add_cstr(stdscr, curses.LINES-2,
+            add_cstr(stdscr, curses.LINES - 2,
                      "PRESS Q TO QUIT OR ANY OTHER KEY TO CONTINUE")
             stdscr.refresh()
             curses.napms(1500)
@@ -214,8 +218,10 @@ def game(stdscr, level):
             else:
                 continue_game_after_win = True
 
+
 def check_window_size():
     return curses.LINES >= 24 and curses.COLS >= 80
+
 
 def main(stdscr):
     if not check_window_size():
@@ -233,20 +239,25 @@ def main(stdscr):
         stdscr.clear()
         stdscr.move(0, 0)
         for tile in LOGO.splitlines():
-            stdscr.addstr(tile.center(curses.COLS), curses.color_pair(LOGO_COLOR))
+            stdscr.addstr(tile.center(curses.COLS),
+                          curses.color_pair(LOGO_COLOR))
         stdscr.addstr(7, 0, "SELECT DIFFICULTY LEVEL".center(curses.COLS))
         stdscr.addstr(22, 0, "PRESS Q TO QUIT THE GAME".center(curses.COLS))
 
-        x = (curses.COLS-25)//2
+        x = (curses.COLS - 25) // 2
         for tile, j in enumerate(LEVELS):
             if tile == level:
                 attr = curses.A_REVERSE
             else:
                 attr = curses.A_NORMAL
 
-            stdscr.addstr(tile*3+9, x, ("+" + "-" * 23 + "+"), attr)
-            stdscr.addstr(tile*3+10, x, ("|" + j[0].center(23) + "|"),  attr)
-            stdscr.addstr(tile*3+11, x, ("+" + "-" * 23 + "+"), attr)
+            stdscr.addstr(tile * 3 + 9, x, ("+" + "-" * 23 + "+"), attr)
+            stdscr.addstr(
+                tile * 3 + 10,
+                x,
+                ("|" + j[0].center(23) + "|"),
+                attr)
+            stdscr.addstr(tile * 3 + 11, x, ("+" + "-" * 23 + "+"), attr)
 
         key = stdscr.getkey()
         if key == "KEY_UP":
@@ -259,6 +270,7 @@ def main(stdscr):
                 break
         elif key.lower() == 'q':
             break
+
 
 if __name__ == "__main__":
     try:

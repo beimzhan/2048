@@ -183,6 +183,45 @@ class Board2048:
             if is_game_won:
                 self.state = "WON AND CANNOT CONTINUE"
 
+    def get_random_move(self):
+        all_moves = ["UP", "DOWN", "LEFT", "RIGHT"]
+        while all_moves:
+            search_board = Board2048(self.height, self.width, self.board)
+
+            random_move = all_moves.pop(random.randint(0, len(all_moves) - 1))
+            search_board.move(random_move)
+
+            if search_board.moved:
+                return random_move
+
+        return "UP"
+
+    def get_best_move(self):
+        all_moves = ["UP", "DOWN", "LEFT", "RIGHT"]
+        scores = [0 for _ in range(4)]
+
+        for i, direction in enumerate(all_moves):
+            initial_board = Board2048(self.height, self.width, self.board)
+            initial_board.move(direction)
+
+            if not initial_board.moved:
+                continue
+
+            scores[i] += initial_board.score
+            for _ in range(20): # searches per move
+                j = 1
+                search_board = copy.deepcopy(initial_board)
+
+                while search_board.moved and j < 10: # search length
+                    random_move = search_board.get_random_move()
+                    search_board.move(random_move)
+
+                    if search_board.moved:
+                        scores[i] += search_board.score
+                        j += 1
+
+        return all_moves[max(range(4), key=lambda i: scores[i])]
+
 
 class NFactorial2048(Board2048):
     def __init__(self, level_name, height, width):
@@ -218,6 +257,9 @@ class NFactorial2048(Board2048):
         super().move(direction)
         self.draw()
 
+    def make_best_move(self):
+        self.move(self.get_best_move())
+
     def get_highscores(self):
         try:
             with open("highscores.json", "r") as f:
@@ -250,32 +292,6 @@ class NFactorial2048(Board2048):
 def adcstr(stdscr, y, str):
     stdscr.addstr(y, 0, str.center(curses.COLS))
 
-
-def get_best_move(height, width, board):
-    all_moves = ["UP", "DOWN", "LEFT", "RIGHT"]
-    scores = [0 for _ in range(4)]
-
-    for i, direction in enumerate(all_moves):
-        initial_board = Board2048(height, width, board)
-        initial_board.move(direction)
-
-        if not initial_board.moved:
-            continue
-
-        scores[i] += initial_board.score
-        for _ in range(20): # searches per move
-            j = 1
-            search_board = copy.deepcopy(initial_board)
-
-            while search_board.moved and j < 10: # search length
-                random_move = random.choice(all_moves)
-                search_board.move(random_move)
-
-                if search_board.moved:
-                    scores[i] += search_board.score
-                    j += 1
-
-    return all_moves[max(range(4), key=lambda i: scores[i])]
 
 def game(stdscr, level):
     nfactorial2048 = NFactorial2048(LEVEL_NAMES[level], *LEVELS[level])
@@ -316,9 +332,7 @@ def game(stdscr, level):
             bot_play = not bot_play
             continue
         elif bot_play and key == "":
-            nfactorial2048.move(get_best_move(
-                nfactorial2048.height, nfactorial2048.width,
-                nfactorial2048.board))
+            nfactorial2048.make_best_move()
         elif not bot_play:
             if key == "KEY_UP" or key.lower() == "w":
                 nfactorial2048.move("UP")

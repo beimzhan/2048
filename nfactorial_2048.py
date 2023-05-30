@@ -12,6 +12,13 @@ LEVEL_NAMES = [
 ]
 LEVELS = [(3, 3), (4, 4), (5, 5), (6, 6)]
 
+LOGO = " _____  _____    ___  _____ \n" \
+       "/ __  \\|  _  |  /   ||  _  |\n" \
+       "`' / /'| |/' | / /| | \\ V / \n" \
+       "  / /  |  /| |/ /_| | / _ \\ \n" \
+       "./ /___\\ |_/ /\\___  || |_| |\n" \
+       "\\_____/ \\___/     |_/\\_____/\n"
+
 COLOR_PAIRS = {
     1:  (curses.COLOR_YELLOW, curses.COLOR_BLACK),
     2:  (curses.COLOR_WHITE, curses.COLOR_BLUE),
@@ -34,13 +41,6 @@ COLOR_PAIRS = {
     19: (curses.COLOR_WHITE, curses.COLOR_CYAN),
     20: (curses.COLOR_WHITE, curses.COLOR_RED)
 }
-
-LOGO = " _____  _____    ___  _____ \n" \
-       "/ __  \\|  _  |  /   ||  _  |\n" \
-       "`' / /'| |/' | / /| | \\ V / \n" \
-       "  / /  |  /| |/ /_| | / _ \\ \n" \
-       "./ /___\\ |_/ /\\___  || |_| |\n" \
-       "\\_____/ \\___/     |_/\\_____/\n"
 
 LOGO_COLOR = 1
 
@@ -154,13 +154,12 @@ class Board2048:
             self.move_left()
         elif direction == "RIGHT":
             self.move_right()
+        else:
+            raise ValueError("Invalid direction")
 
-        if not self.moved:
-            return
-
-        self.add_tile_to_random_empty_cell()
-
-        self.evaluate_state()
+        if self.moved:
+            self.add_tile_to_random_empty_cell()
+            self.evaluate_state()
 
     def evaluate_state(self):    
         is_game_won = False
@@ -186,12 +185,13 @@ class Board2048:
     def get_random_move(self):
         all_moves = ["UP", "DOWN", "LEFT", "RIGHT"]
         while all_moves:
-            search_board = Board2048(self.height, self.width, self.board)
+            board = Board2048(self.height, self.width, self.board)
 
-            random_move = all_moves.pop(random.randint(0, len(all_moves) - 1))
-            search_board.move(random_move)
+            random_move_idx = random.randint(0, len(all_moves) - 1)
+            random_move = all_moves.pop(random_move_idx)
+            board.move(random_move)
 
-            if search_board.moved:
+            if board.moved:
                 return random_move
 
         return "UP"
@@ -236,6 +236,7 @@ class NFactorial2048(Board2048):
 
     def draw(self):
         self.board_window.clear()
+
         for i in range(self.width):
             for j in range(self.height):
                 tile = self.board[i][j]
@@ -251,6 +252,7 @@ class NFactorial2048(Board2048):
         for j in range(self.height):
             self.board_window.addstr(self.width * 2, j * 9, "+--------")
         self.board_window.insch(self.width * 2, self.height * 9, "+")
+
         self.board_window.refresh()
 
     def move(self, direction):

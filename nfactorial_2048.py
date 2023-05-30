@@ -75,7 +75,7 @@ class Board2048:
         self.width = width
 
         if board:
-            self.board = copy.deepcopy(board) # TODO: TEST
+            self.board = copy.deepcopy(board)
         else:
             self.board = [[0] * width for _ in range(height)]
             for _ in range(2):
@@ -103,9 +103,8 @@ class Board2048:
                     self.board[i][k] = self.board[i][j]
                     if j != k:
                         self.board[i][j] = 0
+                        self.compressed = True
                     k += 1
-            if k != self.width - 1:
-                self.compressed = True
         return self
 
     def merge(self):
@@ -190,7 +189,6 @@ class NFactorial2048(Board2048):
         super().__init__(height, width)
 
         self.level_name = level_name
-        self.state = "PLAYING"
 
         self.board_window = curses.newwin(
             height * 2 + 1, width * 9 + 1,

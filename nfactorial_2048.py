@@ -68,38 +68,31 @@ TILE_COLORS = {
 
 
 class Board2048:
-    @classmethod
-    def empty_board(cls, height, width):
-        return [[0] * width for _ in range(height)]
+    def __init__(self, height, width, board=None):
+        self.score = 0
 
-    def add_random_tile(self, value):
-        empty_tiles = [(row, col)
-                       for row, row_tiles in enumerate(self.board)
-                       for col, tile in enumerate(row_tiles)
-                       if tile == 0]
-
-        if not empty_tiles:
-            return
-
-        x, y = random.choice(empty_tiles)
-        self.board[x][y] = value
-
-    def __init__(self, height, width):
         self.height = height
         self.width = width
 
-        self.score = 0
+        if board:
+            self.board = copy.deepcopy(board) # TODO: TEST
+        else:
+            self.board = [[0] * width for _ in range(height)]
+            for _ in range(2):
+                self.add_tile_to_random_empty_cell()
 
-        self.board = Board2048.empty_board(height, width)
-        for _ in range(2):
-            # choose 2 with 75% probability and 4 with 25% probability
-            self.add_random_tile(random.choice([2, 2, 2, 4]))
+        self.evaluate_state()
 
-    @classmethod
-    def from_board(cls, height, width, board):
-        res = cls(height, width)
-        res.board = copy.deepcopy(board)
-        return res
+    def add_tile_to_random_empty_cell(self):
+        empty_cells = []
+        for row in range(self.height):
+            for col in range(self.width):
+                if self.board[row][col] == 0:
+                    empty_cells.append((row, col))
+
+        if empty_cells:
+            x, y = random.choice(empty_cells)
+            self.board[x][y] = random.choice([2] * 6 + [4])
 
     def compress(self):
         self.compressed = False
@@ -140,12 +133,8 @@ class Board2048:
         return self
 
     def move_left(self):
-        tmp = copy.deepcopy(self.board)
         self.compress().merge()
-        self.is_valid_move = self.compressed or self.merged
-        if not self.is_valid_move:
-            self.board = tmp
-            return self
+        self.moved = self.compressed or self.merged
         return self.compress()
 
     def move_right(self):
@@ -167,29 +156,32 @@ class Board2048:
         elif direction == "RIGHT":
             self.move_right()
 
-        if not self.is_valid_move:
+        if not self.moved:
             return
 
-        self.add_random_tile(random.choice([2] * 6 + [4]))
+        self.add_tile_to_random_empty_cell()
 
-        won = False
-        game_continues = False
+        self.evaluate_state()
+
+    def evaluate_state(self):    
+        is_game_won = False
+        will_game_continue = False
         for i in range(self.width):
             for j in range(self.height):
                 if self.board[i][j] >= 2048:
-                    won = True
+                    is_game_won = True
                 if self.board[i][j] == 0 or \
                         i > 0 and self.board[i - 1][j] == self.board[i][j] or \
                         j > 0 and self.board[i][j - 1] == self.board[i][j]:
-                    game_continues = True
+                    will_game_continue = True
 
-        if game_continues:
+        if will_game_continue:
             self.state = "PLAYING"
-            if won:
+            if is_game_won:
                 self.state = "WON AND CAN CONTINUE"
         else:
             self.state = "LOST"
-            if won:
+            if is_game_won:
                 self.state = "WON AND CANNOT CONTINUE"
 
 
@@ -266,22 +258,22 @@ def get_best_move(height, width, board):
     scores = [0 for _ in range(4)]
 
     for i, direction in enumerate(all_moves):
-        board_copy = Board2048.from_board(height, width, board)
-        board_copy.move(direction)
+        initial_board = Board2048(height, width, board)
+        initial_board.move(direction)
 
-        if not board_copy.is_valid_move:
+        if not initial_board.moved:
             continue
 
-        scores[i] += board_copy.score
+        scores[i] += initial_board.score
         for _ in range(20): # searches per move
             j = 1
-            search_board = copy.deepcopy(board_copy)
+            search_board = copy.deepcopy(initial_board)
 
-            while search_board.is_valid_move and j < 10: # search length
+            while search_board.moved and j < 10: # search length
                 random_move = random.choice(all_moves)
                 search_board.move(random_move)
 
-                if search_board.is_valid_move:
+                if search_board.moved:
                     scores[i] += search_board.score
                     j += 1
 

@@ -161,7 +161,7 @@ class Board2048:
             self.add_tile_to_random_empty_cell()
             self.evaluate_state()
 
-    def evaluate_state(self):    
+    def evaluate_state(self):
         is_game_won = False
         will_game_continue = False
         for i in range(self.width):
@@ -208,11 +208,11 @@ class Board2048:
                 continue
 
             scores[i] += initial_board.score
-            for _ in range(20): # searches per move
+            for _ in range(20):  # searches per move
                 j = 1
                 search_board = copy.deepcopy(initial_board)
 
-                while search_board.moved and j < 10: # search length
+                while search_board.moved and j < 10:  # search length
                     random_move = search_board.get_random_move()
                     search_board.move(random_move)
 
@@ -228,11 +228,36 @@ class NFactorial2048(Board2048):
         super().__init__(height, width)
 
         self.level_name = level_name
+        self.highscores = NFactorial2048.get_highscores()
 
         self.board_window = curses.newwin(
             height * 2 + 1, width * 9 + 1,
             (curses.LINES - height * 2 - 1) // 2,
             (curses.COLS - width * 9 - 1) // 2)
+
+    @classmethod
+    def get_highscores(cls):
+        try:
+            with open("highscores.json", "r") as f:
+                return json.load(f)
+        except BaseException:
+            return {}
+
+    def move(self, direction):
+        super().move(direction)
+        self.draw()
+
+    def get_highscore(self):
+        highscore_from_file = self.highscores.get(self.level_name, 0)
+        return max(self.score, highscore_from_file)
+
+    def save_score(self):
+        self.highscores[self.level_name] = self.get_highscore()
+        try:
+            with open("highscores.json", "w") as f:
+                json.dump(self.highscores, f)
+        except BaseException:
+            pass
 
     def draw(self):
         self.board_window.clear()
@@ -255,36 +280,6 @@ class NFactorial2048(Board2048):
 
         self.board_window.refresh()
 
-    def move(self, direction):
-        super().move(direction)
-        self.draw()
-
-    def make_best_move(self):
-        self.move(self.get_best_move())
-
-    def get_highscores(self):
-        try:
-            with open("highscores.json", "r") as f:
-                return json.load(f)
-        except BaseException:
-            return {}
-
-    def get_highscore(self):
-        highscore_from_file = self.get_highscores().get(self.level_name, 0)
-        if self.score > highscore_from_file:
-            return self.score
-        else:
-            return highscore_from_file
-
-    def save_score(self):
-        highscores = self.get_highscores()
-        highscores[self.level_name] = self.get_highscore()
-        try:
-            with open("highscores.json", "w") as f:
-                json.dump(highscores, f)
-        except BaseException:
-            pass
-
     def show_score(self, stdscr):
         stdscr.addstr(4, 0, f"SCORE: {self.score}".center(curses.COLS // 2) +
                       f"HIGH SCORE: {self.get_highscore()}".center(curses.COLS // 2))
@@ -303,39 +298,40 @@ def game(stdscr, level):
     nfactorial2048.show_score(stdscr)
     nfactorial2048.draw()
 
-    bot_play = False
+    is_bot_playing = False
     continue_game_after_win = False
     while True:
         stdscr.move(2, 0)
         stdscr.clrtoeol()
+
         adcstr(stdscr, curses.LINES - 2,
                "PRESS Q TO QUIT, ARROW KEYS OR WASD TO MOVE THE TILES")
 
-        if bot_play:
+        if is_bot_playing:
             adcstr(stdscr, curses.LINES - 4,
                    "BOT PLAY IS ON. PRESS B TO TURN IT OFF.")
-        else:
-            adcstr(stdscr, curses.LINES - 4, "PRESS B TO TOGGLE BOT PLAY")
 
-        if bot_play:
             stdscr.nodelay(True)
             curses.napms(250)
         else:
-            stdscr.nodelay(False)
+            adcstr(stdscr, curses.LINES - 4, "PRESS B TO TOGGLE BOT PLAY")
 
         try:
             key = stdscr.getkey()
         except BaseException:  # if no key is pressed
             key = ""
+        finally:
+            stdscr.nodelay(False)
 
         if key.lower() == "q":
             return False
         if key.lower() == "b":
-            bot_play = not bot_play
+            is_bot_playing = not is_bot_playing
             continue
-        elif bot_play and key == "":
-            nfactorial2048.make_best_move()
-        elif not bot_play:
+        elif is_bot_playing and key == "":
+            best_move = nfactorial2048.get_best_move()
+            nfactorial2048.move(best_move)
+        elif not is_bot_playing:
             if key == "KEY_UP" or key.lower() == "w":
                 nfactorial2048.move("UP")
             elif key == "KEY_DOWN" or key.lower() == "s":
@@ -356,9 +352,9 @@ def game(stdscr, level):
             adcstr(stdscr, 2, "GAME OVER!")
             adcstr(stdscr, curses.LINES - 2,
                    "PRESS Q TO QUIT OR ANY OTHER KEY TO RESTART")
+
             stdscr.refresh()
             curses.napms(1500)
-            stdscr.nodelay(False)
             key = stdscr.getkey()
             return key.lower() != "q"
         elif nfactorial2048.state == "WON AND CAN CONTINUE":
@@ -367,9 +363,9 @@ def game(stdscr, level):
             adcstr(stdscr, 2, "YOU WON!")
             adcstr(stdscr, curses.LINES - 2,
                    "PRESS Q TO QUIT OR ANY OTHER KEY TO CONTINUE")
+
             stdscr.refresh()
             curses.napms(1500)
-            stdscr.nodelay(False)
             key = stdscr.getkey()
             if key.lower() == "q":
                 return False
